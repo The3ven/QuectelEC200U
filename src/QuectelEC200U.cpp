@@ -74,6 +74,19 @@ void QuectelEC200U::logError(const String &msg) {
   }
 }
 
+
+bool QuectelEC200U::begin(EC200UConfig config, bool forceReinit)
+{
+  _baud = config._baud;
+  _rxPin = config._rxPin;
+  _txPin = config._txPin;
+  _pw_key_pin = config._pw_key_pin;
+  _status_pin = config._status_pin;
+
+  return begin(forceReinit);
+}
+
+
 bool QuectelEC200U::begin(bool forceReinit) {
   // Skip initialization if already done and not forced
   if (_initialized && !forceReinit) {
@@ -83,22 +96,31 @@ bool QuectelEC200U::begin(bool forceReinit) {
 
   _state = MODEM_INITIALIZING;
   
-#if defined(ARDUINO_ARCH_ESP32)
-  if (_hwSerial) {
-    if (_rxPin >= 0 && _txPin >= 0) {
-      _hwSerial->begin(_baud, SERIAL_8N1, _rxPin, _txPin);
-    } else {
+  #if defined(ARDUINO_ARCH_ESP32)
+    if (_hwSerial) {
+      if (_rxPin >= 0 && _txPin >= 0) {
+        _hwSerial->begin(_baud, SERIAL_8N1, _rxPin, _txPin);
+      } else {
+        _hwSerial->begin(_baud);
+      }
+    }
+  #else
+    if (_hwSerial) {
       _hwSerial->begin(_baud);
     }
-  }
-#else
-  if (_hwSerial) {
-    _hwSerial->begin(_baud);
-  }
-#endif
+  #endif
 
   delay(1000);
   flushInput();
+
+  powerOn();
+
+  if (!waitForResponse(F("RDY"), 3000))
+  {
+    logError(F("Failed to power on modem"));
+    _state = MODEM_NOT_RESPONDING;
+    return false;
+  }
 
   if (!initializeModem()) {
     _state = MODEM_ERROR;
@@ -500,6 +522,29 @@ bool QuectelEC200U::factoryReset() {
 bool QuectelEC200U::powerOff() {
   logDebug(F("Powering off modem..."));
   return sendAT(F("AT+QPOWD=1"), F("OK"), 5000);
+}
+
+bool QuectelEC200U::powerOn() {
+  #if defined(ARDUINO_ARCH_ESP32)
+    pinMode(_pw_key_pin, OUTPUT);
+    pinMode(_status_pin, INPUT);
+
+    // Check if modem is already on
+    if (digitalRead(_status_pin) == LOW) {
+      logDebug(F("Powering on modem..."));
+      digitalWrite(_pw_key_pin, LOW);
+      delay(500);
+      digitalWrite(_pw_key_pin, HIGH);
+      delay(3000);  // Wait for modem to power on
+      logDebug(F("✓ Modem powered on"));
+    } else {
+      logDebug(F("✓ Modem already powered on"));
+    }
+  #else
+    Serial.println(F("⚠ Manual power-on required for non-ESP32 boards"));
+    return false;
+  #endif
+  return true;
 }
 
 bool QuectelEC200U::reboot() {

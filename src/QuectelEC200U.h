@@ -21,6 +21,7 @@
 
 // Modem states
 enum ModemState {
+  MODEM_NOT_RESPONDING,
   MODEM_UNINITIALIZED,
   MODEM_INITIALIZING,
   MODEM_READY,
@@ -57,6 +58,14 @@ enum class ErrorCode {
   FS_ERROR = -70,
 };
 
+struct EC200UConfig {
+  uint32_t _baud = 115200;
+  int8_t _rxPin = -1;
+  int8_t _txPin = -1;
+  int8_t _pw_key_pin = -1;
+  int8_t _status_pin = -1;
+};
+
 class QuectelEC200U {
   public:
     // HardwareSerial constructor (auto-configure on begin). On ESP32, optional RX/TX pins are supported.
@@ -64,6 +73,7 @@ class QuectelEC200U {
     // Generic Stream constructor (e.g., SoftwareSerial, USB CDC). Stream must be pre-begun by the caller.
     QuectelEC200U(Stream &stream);
 
+    bool begin(EC200UConfig config, bool forceReinit = false);
     bool begin(bool forceReinit = false);
     void enableDebug(Stream &debugStream);
     bool sendAT(const String &cmd, const String &expect = "OK", uint32_t timeout = 3000);
@@ -193,6 +203,7 @@ class QuectelEC200U {
     
     // Power management
     bool powerOff();
+    bool powerOn();
     bool reboot();
     
     // Utility functions
@@ -208,6 +219,9 @@ class QuectelEC200U {
     uint32_t _baud;
     int8_t _rxPin;
     int8_t _txPin;
+    int8_t _pw_key_pin;
+    int8_t _status_pin;
+
     ModemState _state;
     ErrorCode _lastError;
     
