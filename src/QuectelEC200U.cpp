@@ -455,6 +455,31 @@ String QuectelEC200U::getOwnNumber() {
   return extractQuotedString(resp.c_str(), F("\"+"));
 }
 
+String QuectelEC200U::getAPN()
+{
+  String op = getOperator();
+  op.toLowerCase();
+
+  struct { const char* key; const char* apn; } apnMap[] = {
+    {"airtel",   "AIRTELGPRS.COM"},
+    {"vi",       "WWW"},
+    {"vodafone", "WWW"},
+    {"idea",     "WWW"},
+    {"bsnl",     "BSNLNET"},
+    {"jio",      "JIONET"}
+  };
+
+  for (const auto& entry : apnMap) {
+    if (String(entry.key).indexOf(op) != -1 || op.indexOf(entry.key) != -1) {
+      _apn = String(entry.apn);
+      _apn.trim();
+      return _apn;
+    }
+  }
+
+  return "";
+}
+
 bool QuectelEC200U::factoryReset() {
   logDebug(F("Performing factory reset..."));
   bool result = sendAT(F("AT&F"), F("OK"), 5000);
