@@ -92,6 +92,7 @@ class QuectelEC200U {
     int getRegistrationStatus(bool eps = true);
     bool isSimReady();
     String getOperator();
+    String getOwnNumber();
     
     // SMS
     bool sendSMS(const char* number, const char* text);

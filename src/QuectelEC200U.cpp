@@ -426,6 +426,14 @@ String QuectelEC200U::getModemInfo() {
     info += F("\n");
   }
 
+  String ownNumber = getOwnNumber();
+
+  if (ownNumber.length() > 0) {
+    info += F("Mobile Number: ");
+    info += _ownNumber;;
+    info += F("\n");
+  }
+
   int regStatus = getRegistrationStatus();
   info += F("Registration: ");
   info += _getRegistrationStatusString(regStatus);
@@ -439,6 +447,12 @@ String QuectelEC200U::getOperator() {
   _serial->println(F("AT+COPS?"));
   String resp = readResponse(1000);
   return extractQuotedString(resp.c_str(), F("+COPS:"));
+}
+
+String QuectelEC200U::getOwnNumber() {
+  _serial->println(F("AT+CNUM"));
+  String resp = readResponse(1000);
+  return extractQuotedString(resp.c_str(), F("\"+"));
 }
 
 bool QuectelEC200U::factoryReset() {

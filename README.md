@@ -238,7 +238,7 @@ QuectelEC200U modem(SerialAT);
 
 ## State Management
 
-The library uses a state machine to track the modem's status. You can get the current state using `modem.getState()`. The possible states are:
+The library uses a state mechanism to track the modem's status. You can get the current state using `modem.getState()`. The possible states are:
 
 - `MODEM_UNINITIALIZED`: The modem has not been initialized.
 - `MODEM_INITIALIZING`: The modem is currently initializing.
