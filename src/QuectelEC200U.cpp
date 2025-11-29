@@ -118,7 +118,7 @@ bool QuectelEC200U::initializeModem() {
   // 1. Start AT SYNC: Send AT every 500ms, up to 10 times
   bool syncSuccess = false;
   for (int i = 0; i < 10; i++) {
-    if (sendAT(F("AT"), F("OK"), 500)) {
+    if (sendAT("AT", "OK", 500)) {
       syncSuccess = true;
       logDebug(F("SYNC success"));
       break;
@@ -136,18 +136,18 @@ bool QuectelEC200U::initializeModem() {
   sendAT(F("ATI"));
 
   // 3. ATV1 - Verbose response format
-  sendAT(F("ATV1"), F("OK"));
+  sendAT("ATV1", "OK");
 
   // 4. ATE0 - Disable Echo (Library requires this for parsing, despite user log showing ATE1)
   if (!_echoDisabled) {
-    if (sendAT(F("ATE0"), F("OK"), 1000)) {
+    if (sendAT("ATE0", "OK", 1000)) {
       _echoDisabled = true;
       logDebug(F("Echo disabled"));
     }
   }
 
   // 5. AT+CMEE=2 - Verbose errors
-  sendAT(F("AT+CMEE=2"), F("OK"));
+  sendAT("AT+CMEE=2", "OK");
 
   // 6. AT+IPR? - Baudrate
   sendAT(F("AT+IPR?"));
@@ -197,7 +197,7 @@ bool QuectelEC200U::initializeModem() {
   }
 
   // Check GPRS attachment
-  if (!sendAT(F("AT+CGATT?"), F("+CGATT: 1"))) {
+  if (!sendAT("AT+CGATT?", "+CGATT: 1")) {
     logError(F("GPRS not attached"));
     _lastError = ErrorCode::GPRS_NOT_ATTACHED;
   }
@@ -224,7 +224,7 @@ void QuectelEC200U::sendATRaw(const String &cmd) {
 }
 
 // Inspired by simple AT command approach - clean and efficient
-bool QuectelEC200U::sendAT(const String &cmd, const String &expect, uint32_t timeout) {
+bool QuectelEC200U::sendAT(const char* cmd, const char* expect, uint32_t timeout) {
   if (_debugSerial) {
     _debugSerial->print(F("CMD: "));
     _debugSerial->println(cmd);
@@ -240,7 +240,7 @@ bool QuectelEC200U::sendAT(const String &cmd, const String &expect, uint32_t tim
     _debugSerial->println(buffer);
   }
 
-  if (strstr(buffer, expect.c_str()) != NULL) {
+  if (strstr(buffer, expect) != NULL) {
     _lastError = ErrorCode::NONE;
     return true;
   }
@@ -265,7 +265,7 @@ bool QuectelEC200U::sendAT(const String &cmd, const String &expect, uint32_t tim
 }
 
 bool QuectelEC200U::sendAT(const String &cmd) {
-  return sendAT(cmd, F("OK"), 1000);
+  return sendAT(cmd.c_str(), "OK", 1000);
 }
 
 
@@ -574,7 +574,7 @@ String QuectelEC200U::getOperator() {
 
 bool QuectelEC200U::factoryReset() {
   logDebug(F("Performing factory reset..."));
-  bool result = sendAT(F("AT&F"), F("OK"), 5000);
+  bool result = sendAT("AT&F", "OK", 5000);
   if (result) {
     _initialized = false;
     _echoDisabled = false;
@@ -591,12 +591,12 @@ bool QuectelEC200U::factoryReset() {
 
 bool QuectelEC200U::powerOff() {
   logDebug(F("Powering off modem..."));
-  return sendAT(F("AT+QPOWD=1"), F("OK"), 5000);
+  return sendAT("AT+QPOWD=1", "OK", 5000);
 }
 
 bool QuectelEC200U::reboot() {
   logDebug(F("Rebooting modem..."));
-  bool result = sendAT(F("AT+CFUN=1,1"), F("OK"), 5000);
+  bool result = sendAT("AT+CFUN=1,1", "OK", 5000);
   if (result) {
     _initialized = false;
     _echoDisabled = false;
@@ -625,7 +625,8 @@ int QuectelEC200U::getSMSCount() {
 }
 
 bool QuectelEC200U::deleteSMS(int index) {
-  return sendAT("AT+CMGD=" + String(index), "OK");
+  String cmd = "AT+CMGD=" + String(index);
+  return sendAT(cmd.c_str(), "OK");
 }
 
 // FTP utilities
@@ -676,7 +677,7 @@ bool QuectelEC200U::setAPN(const char* apn) {
   // If any context is active, deactivate all
   if (actResp.indexOf(F("+QIACT:")) != -1) {
     logDebug(F("PDP contexts are active, deactivating..."));
-    sendAT(F("AT+QIDEACT=1"), F("OK"), 40000);
+    sendAT("AT+QIDEACT=1", "OK", 40000);
     delay(2000);
   }
   
@@ -743,7 +744,7 @@ bool QuectelEC200U::attachData(const char* apn, const char* user, const char* pa
   // If not attached, attach now
   if (attachResp.indexOf(F("+CGATT: 0")) != -1) {
     logDebug(F("GPRS not attached, attaching..."));
-    if (!sendAT(F("AT+CGATT=1"), F("OK"), 10000)) {
+    if (!sendAT("AT+CGATT=1", "OK", 10000)) {
       logError(F("GPRS attach failed"));
       _lastError = ErrorCode::GPRS_NOT_ATTACHED;
       return false;
@@ -781,11 +782,13 @@ bool QuectelEC200U::attachData(const char* apn, const char* user, const char* pa
 }
 
 bool QuectelEC200U::activatePDP(int ctxId) {
-  return sendAT("AT+QIACT=" + String(ctxId), "OK", 15000);
+  String cmd = "AT+QIACT=" + String(ctxId);
+  return sendAT(cmd.c_str(), "OK", 15000);
 }
 
 bool QuectelEC200U::deactivatePDP(int ctxId) {
-  return sendAT("AT+QIDEACT=" + String(ctxId), "OK", 15000);
+  String cmd = "AT+QIDEACT=" + String(ctxId);
+  return sendAT(cmd.c_str(), "OK", 15000);
 }
 
 int QuectelEC200U::getRegistrationStatus(bool eps) {
@@ -802,7 +805,9 @@ bool QuectelEC200U::isSimReady() {
 // ===== SMS =====
 bool QuectelEC200U::sendSMS(const char* number, const char* text) {
   if (!sendAT("AT+CMGF=1")) return false;
-  if (!sendAT(String("AT+CMGS=\"") + number + "\"", ">", 2000)) return false;
+  
+  String cmd = String("AT+CMGS=\"") + number + "\"";
+  if (!sendAT(cmd.c_str(), ">", 2000)) return false;
   _serial->print(text);
   _serial->write(26);
   
@@ -909,8 +914,9 @@ bool QuectelEC200U::_sendHttpRequest(const String &url, const String &data, Stri
   _sendHttpHeaders(headers, header_size);
 
   // Use a 10-second timeout for the URL
-  if (!sendAT("AT+QHTTPURL=" + String(url.length()) + ",10", F("CONNECT"))) {
-    sendAT(F("AT+QHTTPCFG=\"requestheader\",0"));
+  String cmd = "AT+QHTTPURL=" + String(url.length()) + ",10";
+  if (!sendAT(cmd.c_str(), "CONNECT")) {
+    sendAT("AT+QHTTPCFG=\"requestheader\",0");
     _lastError = ErrorCode::HTTP_URL_FAILED;
     return false;
   }
@@ -925,37 +931,37 @@ bool QuectelEC200U::_sendHttpRequest(const String &url, const String &data, Stri
   }
 
   if (!expectURC(F("OK"), 5000)) {
-    sendAT(F("AT+QHTTPCFG=\"requestheader\",0"));
+    sendAT("AT+QHTTPCFG=\"requestheader\",0");
     _lastError = ErrorCode::HTTP_URL_WRITE_FAILED;
     return false;
   }
 
   if (isPost) {
     String cmd = "AT+QHTTPPOST=" + String(data.length()) + ",60,60";
-    if (!sendAT(cmd, F("CONNECT"))) {
-      sendAT(F("AT+QHTTPCFG=\"requestheader\",0"));
+    if (!sendAT(cmd.c_str(), "CONNECT")) {
+      sendAT("AT+QHTTPCFG=\"requestheader\",0");
       _lastError = ErrorCode::HTTP_POST_FAILED;
       return false;
     }
     _serial->print(data);
     if (!expectURC(F("OK"), 10000)) {
-      sendAT(F("AT+QHTTPCFG=\"requestheader\",0"));
+      sendAT("AT+QHTTPCFG=\"requestheader\",0");
       _lastError = ErrorCode::HTTP_POST_DATA_WRITE_FAILED;
       return false;
     }
     if (!expectURC(F("+QHTTPPOST:"), 20000)) {
-      sendAT(F("AT+QHTTPCFG=\"requestheader\",0"));
+      sendAT("AT+QHTTPCFG=\"requestheader\",0");
       _lastError = ErrorCode::HTTP_POST_URC_FAILED;
       return false;
     }
   } else {
-    if (!sendAT(F("AT+QHTTPGET=60"), F("OK"), 15000)) {
-      sendAT(F("AT+QHTTPCFG=\"requestheader\",0"));
+    if (!sendAT("AT+QHTTPGET=60", "OK", 15000)) {
+      sendAT("AT+QHTTPCFG=\"requestheader\",0");
       _lastError = ErrorCode::HTTP_GET_FAILED;
       return false;
     }
     if (!expectURC(F("+QHTTPGET:"), 20000)) {
-      sendAT(F("AT+QHTTPCFG=\"requestheader\",0"));
+      sendAT("AT+QHTTPCFG=\"requestheader\",0");
       _lastError = ErrorCode::HTTP_GET_URC_FAILED;
       return false;
     }
@@ -976,14 +982,14 @@ bool QuectelEC200U::_sendHttpRequest(const String &url, const String &data, Stri
 // ===== TCP sockets =====
 int QuectelEC200U::tcpOpen(const String &host, int port, int ctxId, int socketId) {
   String cmd = "AT+QIOPEN=" + String(ctxId) + "," + String(socketId) + ",\"TCP\",\"" + host + "\"," + String(port) + ",0,1";
-  if (!sendAT(cmd, F("OK"), 5000)) return -1;
+  if (!sendAT(cmd.c_str(), "OK", 5000)) return -1;
   if (!expectURC("+QIOPEN: " + String(socketId) + ",0", 15000)) return -1;
   return socketId;
 }
 
 bool QuectelEC200U::tcpSend(int socketId, const String &data) {
   String cmd = "AT+QISEND=" + String(socketId) + "," + String(data.length());
-  if (!sendAT(cmd, F("> "), 2000)) return false;
+  if (!sendAT(cmd.c_str(), "> ", 2000)) return false;
   _serial->print(data);
   
   // Wait for "SEND OK"
@@ -1021,7 +1027,8 @@ bool QuectelEC200U::tcpRecv(int socketId, String &out, size_t bytes, uint32_t ti
 }
 
 bool QuectelEC200U::tcpClose(int socketId) {
-  return sendAT("AT+QICLOSE=" + String(socketId), "OK", 5000);
+  String cmd = "AT+QICLOSE=" + String(socketId);
+  return sendAT(cmd.c_str(), "OK", 5000);
 }
 
 // ===== USSD =====
@@ -1047,7 +1054,7 @@ bool QuectelEC200U::ntpSync(const String &server, int timezone, int contextID, i
         return false;
     }
     String cmd = "AT+QNTP=" + String(contextID) + ",\"" + server + "\"," + String(port) + "," + String(timezone);
-    if (!sendAT(cmd, F("OK"), 1000)) return false;
+    if (!sendAT(cmd.c_str(), "OK", 1000)) return false;
     return expectURC(F("+QNTP: 0"), 125000);
 }
 
@@ -1140,7 +1147,8 @@ bool QuectelEC200U::playTTS(const char* text) {
 // ===== FTP =====
 bool QuectelEC200U::ftpLogin(const String &server, const String &user, const String &pass) {
   if (!sendAT("AT+QFTPCFG=\"account\",\"" + user + "\",\"" + pass + "\"")) return false;
-  return sendAT("AT+QFTPOPEN=\"" + server + "\",21", F("+QFTP"), 15000);
+  String cmd = "AT+QFTPOPEN=\"" + server + "\",21";
+  return sendAT(cmd.c_str(), "+QFTP", 15000);
 }
 
 bool QuectelEC200U::ftpDownload(const String &filename, String &data) {
@@ -1200,7 +1208,7 @@ bool QuectelEC200U::fsList(String &out) {
 
 bool QuectelEC200U::fsUpload(const String &path, const String &content) {
   String cmd = "AT+QFUPL=\"" + path + "\"," + String(content.length()) + ",100";
-  if (!sendAT(cmd, F("CONNECT"), 3000)) return false;
+  if (!sendAT(cmd.c_str(), "CONNECT", 3000)) return false;
   _serial->print(content);
   
   // Wait for "OK"
@@ -1267,13 +1275,14 @@ bool QuectelEC200U::enablePSM(bool enable) {
 
 // ===== MQTT =====
 bool QuectelEC200U::mqttConnect(const String &server, int port) {
-  if (!sendAT("AT+QMTOPEN=0,\"" + server + "\"," + String(port), "+QMTOPEN: 0,0", 15000)) return false;
+  String cmd = "AT+QMTOPEN=0,\"" + server + "\"," + String(port);
+  if (!sendAT(cmd.c_str(), "+QMTOPEN: 0,0", 15000)) return false;
   return sendAT("AT+QMTCONN=0,\"ec200u\"", "+QMTCONN: 0,0", 10000);
 }
 
 bool QuectelEC200U::mqttPublish(const String &topic, const String &message) {
   String cmd = "AT+QMTPUB=0,0,0,0,\"" + topic + "\"";
-  if (!sendAT(cmd, F("> "), 2000)) return false;
+  if (!sendAT(cmd.c_str(), "> ", 2000)) return false;
   _serial->print(message);
   _serial->write(26);
   
@@ -1283,7 +1292,8 @@ bool QuectelEC200U::mqttPublish(const String &topic, const String &message) {
 }
 
 bool QuectelEC200U::mqttSubscribe(const String &topic) {
-  return sendAT("AT+QMTSUB=0,1,\"" + topic + "\",0", F("+QMTSUB: 0,1,0"), 5000);
+  String cmd = "AT+QMTSUB=0,1,\"" + topic + "\",0";
+  return sendAT(cmd.c_str(), "+QMTSUB: 0,1,0", 5000);
 }
 
 String QuectelEC200U::_getSignalStrengthString(int signal) {
@@ -1456,7 +1466,7 @@ bool QuectelEC200U::setDNS(const String &primary, const String &secondary, int c
 
 String QuectelEC200U::getIpByHostName(const String &hostname, int contextID) {
     String cmd = "AT+QIDNSGIP=" + String(contextID) + ",\"" + hostname + "\"";
-    if (!sendAT(cmd, F("OK"), 1000)) return "";
+    if (!sendAT(cmd.c_str(), "OK", 1000)) return "";
     String resp = readResponse(60000);
     int urcIndex = resp.indexOf(F("+QIURC: \"dnsgip\""));
     if (urcIndex != -1) {
@@ -1588,15 +1598,15 @@ String QuectelEC200U::getBatteryCharge() {
 }
 
 String QuectelEC200U::getWifiScan() {
-  sendAT(F("AT+QWIFI=1"), F("OK"), 5000);
+  sendAT("AT+QWIFI=1", "OK", 5000);
   flushInput();
   _serial->println(F("AT+QWIFISCAN=8"));
   return _collectResponse(30000);
 }
 
 String QuectelEC200U::scanBluetooth() {
-  sendAT(F("AT+QBTPWR=1"), F("OK"), 2000);
-  sendAT(F("AT+QBTVIS=1,1"), F("OK"), 2000);
+  sendAT("AT+QBTPWR=1", "OK", 2000);
+  sendAT("AT+QBTVIS=1,1", "OK", 2000);
   flushInput();
   _serial->println(F("AT+QBTSCAN=8"));
   return _collectResponse(30000);
@@ -1604,7 +1614,8 @@ String QuectelEC200U::scanBluetooth() {
 
 // ===== Advanced TCP/IP =====
 bool QuectelEC200U::switchDataAccessMode(int connectID, int accessMode) {
-    return sendAT("AT+QISWTMD=" + String(connectID) + "," + String(accessMode), (accessMode == 2 ? F("CONNECT") : F("OK")));
+  String cmd = "AT+QISWTMD=" + String(connectID) + "," + String(accessMode);
+    return sendAT(cmd.c_str(), (accessMode == 2 ? "CONNECT" : "OK"));
 }
 
 bool QuectelEC200U::echoSendData(bool enable) {
@@ -1655,7 +1666,7 @@ String QuectelEC200U::getModuleVersion() {
 // ===== General Commands =====
 bool QuectelEC200U::restoreFactoryDefaults() {
     logDebug(F("Performing factory reset..."));
-    bool result = sendAT(F("AT&F"), F("OK"), 5000);
+    bool result = sendAT("AT&F", "OK", 5000);
     if (result) {
         _initialized = false;
         _echoDisabled = false;
@@ -1798,11 +1809,13 @@ int QuectelEC200U::getTCPError() {
 
 // ===== Asynchronous PDP Context =====
 bool QuectelEC200U::activatePDPAsync(int ctxId) {
-    return sendAT("AT+QIACTEX=" + String(ctxId) + ",1", F("OK"), 1000);
+  String cmd = "AT+QIACTEX=" + String(ctxId) + ",1";
+    return sendAT(cmd.c_str(), "OK", 1000);
 }
 
 bool QuectelEC200U::deactivatePDPAsync(int ctxId) {
-    return sendAT("AT+QIDEACTEX=" + String(ctxId) + ",1", F("OK"), 1000);
+  String cmd = "AT+QIDEACTEX=" + String(ctxId) + ",1";
+    return sendAT(cmd.c_str(), "OK", 1000);
 }
 
 // ===== Context Configuration =====

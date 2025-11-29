@@ -73,7 +73,7 @@ class QuectelEC200U {
 
     // Core Communication
     bool sendAT(const String &cmd);
-    bool sendAT(const String &cmd, const String &expect, uint32_t timeout = 1000);
+    bool sendAT(const char* cmd, const char* expect, uint32_t timeout = 1000);
     void sendATRaw(const String &cmd);
     String readResponse(uint32_t timeout = 1000);
     int readResponse(char* buffer, size_t length, uint32_t timeout);
@@ -349,7 +349,7 @@ class QuectelEC200U {
     String getPinRetries();
     bool configureContext(int ctxId, int type, const String &apn, const String &user, const String &pass, int auth);
     bool setModemConfig(const String &param, const String &value);
-
+    String getWifiScan();
     
     
     
