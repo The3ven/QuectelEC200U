@@ -118,7 +118,8 @@ class QuectelEC200U {
     bool setNetworkScanMode(int mode);
     bool setBand(const String &gsm_mask, const String &lte_mask);
 
-
+    // Core Utilities
+    String getIMEI();
     int getSignalStrength();
     String getBatteryCharge();
     bool setAPN(const char* apn);
@@ -156,8 +157,6 @@ class QuectelEC200U {
     bool attachData(const char* apn, const char* user = "", const char* pass = "", int auth = 0);
     bool activatePDP(int ctxId = 1);
     bool deactivatePDP(int ctxId = 1);
-    bool activatePDPAsync(int ctxId);
-    bool deactivatePDPAsync(int ctxId);
     int getRegistrationStatus(bool eps = true);
     bool isSimReady();
     String getOperator();
@@ -338,6 +337,19 @@ class QuectelEC200U {
     // Asynchronous PDP Context
     bool activatePDPAsync(int ctxId = 1);
     bool deactivatePDPAsync(int ctxId = 1);
+
+
+    String scanBluetooth();
+    String getManufacturerIdentification();
+    String getModelIdentification();
+    String getFirmwareRevision();
+    String getModuleVersion();
+    String getIMSI();
+    String getICCID();
+    String getPinRetries();
+    bool configureContext(int ctxId, int type, const String &apn, const String &user, const String &pass, int auth);
+    bool setModemConfig(const String &param, const String &value);
+
     
     
     
